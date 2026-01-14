@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Cancellation Predictor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #ffffff;
+            color: #111111;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e5e5e5;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #111111;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        .subtitle {
+            color: #333333;
+            margin-bottom: 30px;
+            font-size: 1em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #111111;
+            font-weight: 500;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #bdbdbd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #111111;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #111111;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .result.show {
+            display: block;
+        }
+        
+        .result h3 {
+            margin-bottom: 10px;
+        }
+        
+        .probability {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #667eea;
+            display: none;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Flight Cancellation Predictor</h1>
+        <p class="subtitle">Enter flight details to predict cancellation probability</p>
+        
+        <form id="predictionForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="airline">Airline *</label>
+                    <select id="airline" name="AIRLINE" required>
+                        <option value="">Select airline...</option>
+                        <option value="Alaska Airlines Inc.">Alaska Airlines</option>
+                        <option value="Allegiant Air">Allegiant Air</option>
+                        <option value="American Airlines Inc.">American Airlines</option>
+                        <option value="Delta Air Lines Inc.">Delta</option>
+                        <option value="Endeavor Air Inc.">Endeavor Air</option>
+                        <option value="Envoy Air">Envoy Air</option>
+                        <option value="ExpressJet Airlines LLC d/b/a aha!">ExpressJet</option>
+                        <option value="Frontier Airlines Inc.">Frontier</option>
+                        <option value="Hawaiian Airlines Inc.">Hawaiian Airlines</option>
+                        <option value="Horizon Air">Horizon Air</option>
+                        <option value="JetBlue Airways">JetBlue</option>
+                        <option value="Mesa Airlines Inc.">Mesa Airlines</option>
+                        <option value="PSA Airlines Inc.">PSA Airlines</option>
+                        <option value="Republic Airline">Republic Airline</option>
+                        <option value="SkyWest Airlines Inc.">SkyWest</option>
+                        <option value="Southwest Airlines Co.">Southwest</option>
+                        <option value="Spirit Air Lines">Spirit</option>
+                        <option value="United Air Lines Inc.">United</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="fl_date">Flight Date *</label>
+                    <input type="date" id="fl_date" name="FL_DATE" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="origin">Origin Airport (3-letter code) *</label>
+                    <input type="text" id="origin" name="ORIGIN" maxlength="3" placeholder="e.g., JFK" required style="text-transform: uppercase;">
+                </div>
+                
+                <div class="form-group">
+                    <label for="dest">Destination Airport (3-letter code) *</label>
+                    <input type="text" id="dest" name="DEST" maxlength="3" placeholder="e.g., LAX" required style="text-transform: uppercase;">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="crs_dep_time">Scheduled Departure Time (HHMM) *</label>
+                    <input type="number" id="crs_dep_time" name="CRS_DEP_TIME" placeholder="e.g., 800 for 8:00 AM" min="0" max="2359" required>
+                    <small style="color: #666;">Format: HHMM (e.g., 800 = 8:00 AM, 1430 = 2:30 PM)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="crs_arr_time">Scheduled Arrival Time (HHMM) *</label>
+                    <input type="number" id="crs_arr_time" name="CRS_ARR_TIME" placeholder="e.g., 1200 for 12:00 PM" min="0" max="2359" required>
+                </div>
+            </div>
+            
+            <div style="margin-top: 10px; color: #333333; font-size: 0.95em;">
+                Distance and scheduled elapsed time will be <strong>auto-inferred</strong> from your route (ORIGIN/DEST) and CRS times.
+            </div>
+            
+            <button type="submit" id="submitBtn">Predict Cancellation</button>
+        </form>
+        
+        <div class="loading" id="loading">Predicting...</div>
+        
+        <div class="result" id="result">
+            <h3 id="resultTitle"></h3>
+            <p id="resultMessage"></p>
+            <div class="probability" id="probability"></div>
+        </div>
+    </div>
+    
+    <script>
+        const form = document.getElementById('predictionForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultMessage = document.getElementById('resultMessage');
+        const probability = document.getElementById('probability');
+        
+        // Auto-uppercase airport codes
+        document.getElementById('origin').addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+        document.getElementById('dest').addEventListener('input', (e) => {
+            e.target.value = e.target.value.toUpperCase();
+        });
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Hide previous results
+            result.classList.remove('show', 'success', 'error');
+            loading.classList.add('show');
+            submitBtn.disabled = true;
+            
+            // Basic client-side validation (still validated again on backend)
+            const isValidHHMM = (value) => {
+                const v = Number(value);
+                if (!Number.isFinite(v)) return false;
+                if (!Number.isInteger(v)) return false;
+                if (v < 0 || v > 2359) return false;
+                const hh = Math.floor(v / 100);
+                const mm = v % 100;
+                return hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59;
+            };
+
+            const originVal = document.getElementById('origin').value.trim().toUpperCase();
+            const destVal = document.getElementById('dest').value.trim().toUpperCase();
+            const depVal = document.getElementById('crs_dep_time').value.trim();
+            const arrVal = document.getElementById('crs_arr_time').value.trim();
+
+            if (originVal.length !== 3 || !/^[A-Z]{3}$/.test(originVal)) {
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+                resultTitle.textContent = 'Error';
+                resultMessage.textContent = 'ORIGIN must be a 3-letter airport code (e.g., JFK).';
+                result.classList.add('show', 'error');
+                return;
+            }
+            if (destVal.length !== 3 || !/^[A-Z]{3}$/.test(destVal)) {
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+                resultTitle.textContent = 'Error';
+                resultMessage.textContent = 'DEST must be a 3-letter airport code (e.g., LAX).';
+                result.classList.add('show', 'error');
+                return;
+            }
+            if (!isValidHHMM(depVal)) {
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+                resultTitle.textContent = 'Error';
+                resultMessage.textContent = 'Departure time must be HHMM in 24-hour format (0000–2359, minutes < 60).';
+                result.classList.add('show', 'error');
+                return;
+            }
+            if (!isValidHHMM(arrVal)) {
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+                resultTitle.textContent = 'Error';
+                resultMessage.textContent = 'Arrival time must be HHMM in 24-hour format (0000–2359, minutes < 60).';
+                result.classList.add('show', 'error');
+                return;
+            }
+
+            // Collect form data
+            const formData = new FormData(form);
+            const data = {};
+            for (const [key, value] of formData.entries()) {
+                // Convert date to YYYY-MM-DD format
+                if (key === 'FL_DATE') {
+                    data[key] = value;
+                } else if (key === 'CRS_DEP_TIME' || key === 'CRS_ARR_TIME') {
+                    data[key] = parseFloat(value);
+                } else {
+                    data[key] = value;
+                }
+            }
+
+            // Ensure we send normalized airport codes
+            data["ORIGIN"] = originVal;
+            data["DEST"] = destVal;
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const json = await response.json();
+                
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+                
+                if (json.success) {
+                    resultTitle.textContent = json.message;
+                    resultMessage.textContent = `Prediction: ${json.prediction === 1 ? 'Cancelled' : 'Not Cancelled'}`;
+                    probability.textContent = `Cancellation Probability: ${(json.probability * 100).toFixed(2)}%`;
+                    result.classList.add('show', 'success');
+                } else {
+                    resultTitle.textContent = 'Error';
+                    resultMessage.textContent = json.error || 'Something went wrong';
+                    result.classList.add('show', 'error');
+                }
+            } catch (error) {
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+                resultTitle.textContent = 'Error';
+                resultMessage.textContent = 'Failed to connect to server. Make sure the Flask app is running.';
+                result.classList.add('show', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

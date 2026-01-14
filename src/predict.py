@@ -29,7 +29,56 @@ def preprocess_new_data(df_raw: pd.DataFrame) -> pd.DataFrame:
     df = df_raw.copy()
 
     # 1) Feature engineering (same as build_features.py)
-    df["dep_hour"] = df["CRS_DEP_TIME"] // 100
+    # ---- Helpers ----
+    def _hhmm_to_minutes(series: pd.Series) -> pd.Series:
+        s = pd.to_numeric(series, errors="coerce")
+        hh = (s // 100).astype("Int64")
+        mm = (s % 100).astype("Int64")
+        minutes = (hh * 60 + mm).astype("Float64")
+
+        # Validate HHMM: 0 <= hh <= 23 and 0 <= mm <= 59
+        valid = (hh >= 0) & (hh <= 23) & (mm >= 0) & (mm <= 59)
+        return minutes.where(valid, np.nan)
+
+    # ---- If user doesn't provide these, infer them ----
+    # CRS_ELAPSED_TIME: compute from CRS times (handles overnight flights)
+    if "CRS_ELAPSED_TIME" not in df.columns or df["CRS_ELAPSED_TIME"].isna().any():
+        dep_min = _hhmm_to_minutes(df["CRS_DEP_TIME"])
+        arr_min = _hhmm_to_minutes(df["CRS_ARR_TIME"])
+        elapsed = arr_min - dep_min
+        elapsed = elapsed.where(elapsed >= 0, elapsed + 24 * 60)  # overnight
+
+        global_median_elapsed = preproc.get("global_median_crs_elapsed")
+        if global_median_elapsed is None:
+            global_median_elapsed = float(np.nanmedian(elapsed))
+
+        if "CRS_ELAPSED_TIME" not in df.columns:
+            df["CRS_ELAPSED_TIME"] = elapsed.fillna(global_median_elapsed)
+        else:
+            df["CRS_ELAPSED_TIME"] = df["CRS_ELAPSED_TIME"].fillna(elapsed).fillna(global_median_elapsed)
+
+    # DISTANCE: infer from (ORIGIN, DEST) lookup based on training data
+    if "DISTANCE" not in df.columns or df["DISTANCE"].isna().any():
+        route_distance_map = preproc.get("route_distance_map", {})
+        global_median_distance = preproc.get("global_median_distance")
+        if global_median_distance is None:
+            global_median_distance = float("nan")
+
+        def _route_distance(row) -> float:
+            key = (row.get("ORIGIN"), row.get("DEST"))
+            val = route_distance_map.get(key)
+            if val is None:
+                return global_median_distance
+            return float(val)
+
+        inferred = df.apply(_route_distance, axis=1)
+        if "DISTANCE" not in df.columns:
+            df["DISTANCE"] = inferred
+        else:
+            df["DISTANCE"] = df["DISTANCE"].fillna(inferred).fillna(global_median_distance)
+
+    # Derived temporal features
+    df["dep_hour"] = pd.to_numeric(df["CRS_DEP_TIME"], errors="coerce") // 100
 
     df["FL_DATE"] = pd.to_datetime(df["FL_DATE"])
     df["month"] = df["FL_DATE"].dt.month

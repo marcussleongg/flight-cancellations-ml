@@ -150,6 +150,15 @@ preproc_artifacts = {
     "origin_freq_map": df["ORIGIN"].value_counts().to_dict(),  # from full training data
     "dest_freq_map": df["DEST"].value_counts().to_dict(),
     "total_flights": len(df),  # for computing proportions
+    # For inference when the user only provides ORIGIN/DEST:
+    # Use typical route distance from historical data
+    "route_distance_map": (
+        df.groupby(["ORIGIN", "DEST"])["DISTANCE"].median().to_dict()
+        if all(c in df.columns for c in ["ORIGIN", "DEST", "DISTANCE"])
+        else {}
+    ),
+    "global_median_distance": float(df["DISTANCE"].median()) if "DISTANCE" in df.columns else None,
+    "global_median_crs_elapsed": float(df["CRS_ELAPSED_TIME"].median()) if "CRS_ELAPSED_TIME" in df.columns else None,
 }
 joblib.dump(preproc_artifacts, preproc_path)
 
